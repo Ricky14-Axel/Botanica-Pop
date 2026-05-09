@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="it" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Botanica Pop Lab - 50+ Combinazioni</title>
+  <script src="https://tailwindcss.com"></script>
+  <link href="https://googleapis.com" rel="stylesheet">
+  <style>
+    * { font-family: 'Montserrat', sans-serif; touch-action: none; }
+    body { background: #f0fdf4; overflow: hidden; height: 100vh; }
+    .element-chip {
+        width: 85px; height: 85px; border-radius: 50%;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        cursor: grab; position: absolute; z-index: 10;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 3px solid rgba(255,255,255,0.5);
+    }
+    .emoji { font-size: 30px; }
+    .label { font-size: 9px; font-weight: 900; text-align: center; padding: 0 5px; text-transform: uppercase; }
+    .sidebar-item {
+        width: 75px; height: 75px; border-radius: 20px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        margin-bottom: 12px; cursor: pointer; flex-shrink: 0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: 0.2s;
+    }
+    .sidebar-item:active { transform: scale(0.9); }
+    #lab { background-image: radial-gradient(#d1fae5 1px, transparent 1px); background-size: 20px 20px; }
+    .discovery-toast {
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        background: #064e3b; color: white; padding: 15px 25px;
+        border-radius: 50px; z-index: 2000; text-align: center;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 2px solid #34d399;
+        animation: slideUp 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+    @keyframes slideUp { from { bottom: -100px; } to { bottom: 20px; } }
+  </style>
+</head>
+<body class="flex flex-col h-full">
+
+<header class="bg-white p-4 shadow-md flex justify-between items-center z-50">
+    <div>
+        <h1 class="text-xl font-black text-emerald-600 leading-none">BOTANICA POP</h1>
+        <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Laboratorio Sperimentale</p>
+    </div>
+    <div class="flex flex-col items-end">
+        <span id="counter" class="text-xs font-black bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full mb-1">0/50 SCOPERTE</span>
+        <button onclick="location.reload()" class="text-[10px] font-bold text-rose-500 underline uppercase">Reset Gioco</button>
+    </div>
+</header>
+
+<div class="flex flex-1 overflow-hidden">
+    <!-- Sidebar con scroll -->
+    <aside id="sidebar" class="w-24 bg-white border-r flex flex-col items-center py-4 overflow-y-auto"></aside>
+    
+    <!-- Area di gioco -->
+    <main id="lab" class="flex-1 relative"></main>
+</div>
+
+<script>
+const ELEMENTS = {
+    // BASE
+    sole: { n: 'Sole', e: '☀️', c: '#fbbf24', t: '#78350f', base: true },
+    acqua: { n: 'Acqua', e: '💧', c: '#60a5fa', t: '#fff', base: true },
+    terra: { n: 'Terra', e: '🤎', c: '#a3785f', t: '#fff', base: true },
+    aria: { n: 'Aria', e: '🌬️', c: '#c4f1f9', t: '#1a4d5e', base: true },
+    tempo: { n: 'Tempo', e: '⏳', c: '#94a3b8', t: '#fff', base: true },
+    insetto: { n: 'Insetto', e: '🐝', c: '#fcd34d', t: '#000', base: true },
+
+    // LIVELLO 1
+    fango: { n: 'Fango', e: '🥣', c: '#78350f', t: '#fff' },
+    energia: { n: 'Energia', e: '⚡', c: '#fde047', t: '#000' },
+    nuvola: { n: 'Nuvola', e: '☁️', c: '#f1f5f9', t: '#475569' },
+    pianta: { n: 'Pianta', e: '🌱', c: '#4ade80', t: '#064e3b' },
+    pioggia: { n: 'Pioggia', e: '🌧️', c: '#3b82f6', t: '#fff' },
+
+    // LIVELLO 2 (PIANTE SPECIFICHE)
+    albero: { n: 'Albero', e: '🌳', c: '#15803d', t: '#fff' },
+    fiore: { n: 'Fiore', e: '🌸', c: '#f472b6', t: '#fff' },
+    erba: { n: 'Erba', e: '🌿', c: '#86efac', t: '#064e3b' },
+    alga: { n: 'Alga', e: '🎋', c: '#0d9488', t: '#fff' },
+    fungo: { n: 'Fungo', e: '🍄', c: '#ef4444', t: '#fff' },
+    cactus: { n: 'Cactus', e: '🌵', c: '#166534', t: '#fff' },
+
+    // LIVELLO 3 (AVANZATE)
+    frutta: { n: 'Frutta', e: '🍎', c: '#dc2626', t: '#fff' },
+    miele: { n: 'Miele', e: '🍯', c: '#d97706', t: '#fff' },
+    bosco: { n: 'Bosco', e: '🌲', c: '#064e3b', t: '#fff' },
+    giungla: { n: 'Giungla', e: '🌴', c: '#14532d', t: '#fff' },
+    deserto: { n: 'Deserto', e: '🏜️', c: '#f59e0b', t: '#fff' },
+    palude: { n: 'Palude', e: '🐊', c: '#365314', t: '#fff' },
+
+    // LIVELLO 4 (POPS & CURIOSITÀ)
+    victoria: { n: 'Victoria', e: '🛶', c: '#8b5cf6', t: '#fff', info: 'Regge il peso di un bambino!' },
+    loto: { n: 'Loto', e: '🪷', c: '#fbcfe8', t: '#be185d', info: 'Foglie che non si sporcano mai.' },
+    venere: { n: 'Venere', e: '🧛', c: '#b91c1c', t: '#fff', info: 'La pianta carnivora più veloce!' },
+    sequoia: { n: 'Sequoia', e: '🏙️', c: '#451a03', t: '#fff', info: 'Alta come un palazzo di 30 piani.' },
+    bonsai: { n: 'Bonsai', e: '✂️', c: '#059669', t: '#fff', info: 'L’arte di rendere gigante il piccolo.' },
+    baobab: { n: 'Baobab', e: '🧴', c: '#78350f', t: '#fff', info: 'L’albero bottiglia che stocca acqua.' },
+    orchidea: { n: 'Orchidea', e: '🦋', c: '#d946ef', t: '#fff', info: 'Imita gli insetti per amore.' },
+    girasole: { n: 'Girasole', e: '🌻', c: '#fbbf24', t: '#000', info: 'Segue il sole tutto il giorno.' },
+    cacao: { n: 'Cioccolato', e: '🍫', c: '#451a03', t: '#fff', info: 'Sì, il cioccolato cresce sugli alberi!' },
+    papiro: { n: 'Carta', e: '📜', c: '#fef3c7', t: '#92400e', info: 'Gli antichi ci scrivevano sopra.' },
+    soffione: { n: 'Soffione', e: '🌬️', c: '#fff', t: '#000', info: 'I suoi semi volano per chilometri.' },
+    ferro: { n: 'Bamboo', e: '🎋', c: '#65a30d', t: '#fff', info: 'Cresce di quasi 1 metro al giorno!' },
+    olivo: { n: 'Olivo', e: '🫒', c: '#3f6212', t: '#fff', info: 'Può vivere più di 2000 anni.' },
+    autunno: { n: 'Autunno', e: '🍂', c: '#c2410c', t: '#fff' },
+    carbone: { n: 'Carbone', e: '💎', c: '#1f2937', t: '#fff' },
+    ossigeno: { n: 'Vita', e: '✨', c: '#2dd4bf', t: '#fff', info: 'Grazie alle piante noi respiriamo!' }
+};
+
+const RECIPES = [
+    { a: 'terra', b: 'acqua', r: 'fango' },
+    { a: 'sole', b: 'aria', r: 'energia' },
+    { a: 'aria', b: 'acqua', r: 'nuvola' },
+    { a: 'fango', b: 'sole', r: 'pianta' },
+    { a: 'nuvola', b: 'acqua', r: 'pioggia' },
+    { a: 'pianta', b: 'tempo', r: 'albero' },
+    { a: 'pianta', b: 'sole', r: 'fiore' },
+    { a: 'pianta', b: 'acqua', r: 'alga' },
+    { a: 'pianta', b: 'terra', r: 'erba' },
+    { a: 'fango', b: 'tempo', r: 'fungo' },
+    { a: 'fiore', b: 'insetto', r: 'miele' },
+    { a: 'fiore', b: 'sole', r: 'loto' },
+    { a: 'albero', b: 'tempo', r: 'sequoia' },
+    { a: 'albero', b: 'insetto', r: 'cacao' },
+    { a: 'pianta', b: 'insetto', r: 'venere' },
+    { a: 'pianta', b: 'aria', r: 'soffione' },
+    { a: 'albero', b: 'acqua', r: 'victoria' },
+    { a: 'albero', b: 'sole', r: 'frutta' },
+    { a: 'albero', b: 'aria', r: 'giungla' },
+    { a: 'erba', b: 'sole', r: 'deserto' },
+    { a: 'deserto', b: 'pianta', r: 'cactus' },
+    { a: 'albero', b: 'terra', r: 'bosco' },
+    { a: 'albero', b: 'fango', r: 'palude' },
+    { a: 'albero', b: 'aria', r: 'olivo' },
+    { a: 'albero', b: 'sole', r: 'baobab' },
+    { a: 'albero', b: 'energia', r: 'ossigeno' },
+    { a: 'albero', b: 'tempo', r: 'carbone' },
+    { a: 'albero', b: 'aria', r: 'autunno' },
+    { a: 'fiore', b: 'insetto', r: 'orchidea' },
+    { a: 'fiore', b: 'sole', r: 'girasole' },
+    { a: 'albero', b: 'fango', r: 'papiro' },
+    { a: 'pianta', b: 'tempo', r: 'bonsai' },
+    { a: 'alga', b: 'tempo', r: 'ferro' }
+];
+
+let discovered = new Set();
+let dragEl = null;
+let offsetX, offsetY;
+
+function init() {
+    renderSidebar();
+    updateCounter();
+}
+
+function renderSidebar() {
+    const side = document.getElementById('sidebar');
+    side.innerHTML = '';
+    Object.keys(ELEMENTS).forEach(id => {
+        if (ELEMENTS[id].base || discovered.has(id)) {
+            const div = document.createElement('div');
+            div.className = 'sidebar-item';
+            div.style.background = ELEMENTS[id].c;
+            div.style.color = ELEMENTS[id].t;
+            div.innerHTML = `<span class="emoji">${ELEMENTS[id].e}</span><span class="label">${ELEMENTS[id].n}</span>`;
+            div.onmousedown = (e) => spawn(e, id);
+            div.ontouchstart = (e) => spawn(e, id);
+            side.appendChild(div);
+        }
+    });
+}
+
+function spawn(e, id) {
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - 42;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY) - 42;
+    const el = createChip(id, x, y);
+    startDrag(e, el);
+}
+
+function createChip(id, x, y) {
+    const div = document.createElement('div');
+    div.className = 'element-chip';
+    div.dataset.id = id;
+    div.style.background = ELEMENTS[id].c;
+    div.style.color = ELEMENTS[id].t;
+    div.style.left = x + 'px';
+    div.style.top = y + 'px';
+    div.innerHTML = `<span class="emoji">${ELEMENTS[id].e}</span><span class="label">${ELEMENTS[id].n}</span>`;
+    div.onmousedown = (e) => startDrag(e, div);
+    div.ontouchstart = (e) => startDrag(e, div);
+    document.getElementById('lab').appendChild(div);
+    return div;
+}
+
+function startDrag(e, el) {
+    dragEl = el;
+    const ex = e.touches ? e.touches[0].clientX : e.clientX;
+    const ey = e.touches ? e.touches[0].clientY : e.clientY;
+    offsetX = ex - el.offsetLeft;
+    offsetY = ey - el.offsetTop;
+    el.style.zIndex = 1000;
+    document.onmousemove = move;
+    document.ontouchmove = move;
+    document.onmouseup = drop;
+    document.ontouchend = drop;
+}
+
+function move(e) {
+    if(!dragEl) return;
+    const ex = e.touches ? e.touches[0].clientX : e.clientX;
+    const ey = e.touches ? e.touches[0].clientY : e.clientY;
+    dragEl.style.left = (ex - offsetX) + 'px';
+    dragEl.style.top = (ey - offsetY) + 'px';
+}
+
+function drop() {
+    if(!dragEl) return;
+    const current = dragEl;
+    const targets = document.querySelectorAll('.element-chip');
+    targets.forEach(t => {
+        if(t === current) return;
+        const d = Math.hypot(current.offsetLeft - t.offsetLeft, current.offsetTop - t.offsetTop);
+        if(d < 60) combine(current, t);
+    });
+    dragEl.style.zIndex = 10;
+    dragEl = null;
+}
+
+function combine(a, b) {
+    const id1 = a.dataset.id;
+    const id2 = b.dataset.id;
+    const recipe = RECIPES.find(r => (r.a === id1 && r.b === id2) || (r.a === id2 && r.b === id1));
+    
+    if(recipe) {
+        const res = recipe.r;
+        const x = b.offsetLeft;
+        const y = b.offsetTop;
+        a.remove(); b.remove();
+        createChip(res, x, y);
+        if(!discovered.has(res)) {
+            discovered.add(res);
+            renderSidebar();
+            updateCounter();
+            if(ELEMENTS[res].info) toast(`✨ SCOPERTA: ${ELEMENTS[res].n}! \n ${ELEMENTS[res].info}`);
+        }
+    }
+}
+
+function updateCounter() {
+    const count = Array.from(discovered).length + 6; // +6 base
+    document.getElementById('counter').innerText = `${count}/50 SCOPERTE`;
+}
+
+function toast(msg) {
+    const t = document.createElement('div');
+    t.className = 'discovery-toast';
+    t.innerText = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+init();
+</script>
+</body>
+</html>
